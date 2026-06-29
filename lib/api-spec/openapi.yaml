@@ -3,13 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: LinguaReader API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: lessons
+    description: Lesson management
+  - name: vocab
+    description: Vocabulary state management
+  - name: dictionary
+    description: Dictionary lookup
+  - name: collections
+    description: Collection/course management
+  - name: srs
+    description: Spaced repetition review
+  - name: stats
+    description: Progress statistics
+  - name: import
+    description: Content import
+  - name: ai
+    description: AI-powered features
+
 paths:
   /healthz:
     get:
@@ -24,6 +41,500 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── LESSONS ────────────────────────────────────────────────────────────
+  /lessons:
+    get:
+      operationId: getLessons
+      tags: [lessons]
+      summary: List all lessons
+      parameters:
+        - in: query
+          name: collectionId
+          schema:
+            type: ["string", "null"]
+        - in: query
+          name: status
+          schema:
+            type: ["string", "null"]
+            enum: ["saved", "in_progress", "completed", null]
+        - in: query
+          name: search
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of lessons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lesson"
+    post:
+      operationId: createLesson
+      tags: [lessons]
+      summary: Create a new lesson
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LessonInput"
+      responses:
+        "201":
+          description: Created lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+
+  /lessons/{id}:
+    get:
+      operationId: getLesson
+      tags: [lessons]
+      summary: Get a single lesson
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lesson detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateLesson
+      tags: [lessons]
+      summary: Update lesson metadata or status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LessonUpdate"
+      responses:
+        "200":
+          description: Updated lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+    delete:
+      operationId: deleteLesson
+      tags: [lessons]
+      summary: Delete a lesson
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /lessons/{id}/stats:
+    get:
+      operationId: getLessonStats
+      tags: [lessons]
+      summary: Get per-lesson vocabulary statistics
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lesson vocabulary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LessonStats"
+
+  # ─── VOCAB ──────────────────────────────────────────────────────────────
+  /vocab:
+    get:
+      operationId: getVocab
+      tags: [vocab]
+      summary: Get all vocabulary entries for the user
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: ["integer", "null"]
+        - in: query
+          name: limit
+          schema:
+            type: ["integer", "null"]
+        - in: query
+          name: offset
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Vocabulary list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VocabEntry"
+
+  /vocab/summary:
+    get:
+      operationId: getVocabSummary
+      tags: [vocab]
+      summary: Known-word counts by status
+      responses:
+        "200":
+          description: Summary counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VocabSummary"
+
+  /vocab/lookup:
+    post:
+      operationId: lookupVocab
+      tags: [vocab]
+      summary: Look up vocab state for a list of dictionary forms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VocabLookupInput"
+      responses:
+        "200":
+          description: Map of dictionary_form → VocabEntry
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/VocabEntry"
+
+  /vocab/{id}:
+    patch:
+      operationId: updateVocabEntry
+      tags: [vocab]
+      summary: Update vocab state or note
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VocabUpdate"
+      responses:
+        "200":
+          description: Updated vocab entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VocabEntry"
+
+  /vocab/upsert:
+    post:
+      operationId: upsertVocab
+      tags: [vocab]
+      summary: Create or update a vocab entry (tap on word)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VocabUpsertInput"
+      responses:
+        "200":
+          description: Upserted vocab entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VocabEntry"
+
+  # ─── DICTIONARY ─────────────────────────────────────────────────────────
+  /dictionary/lookup:
+    get:
+      operationId: dictionaryLookup
+      tags: [dictionary]
+      summary: Look up a word in JMdict
+      parameters:
+        - in: query
+          name: word
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: reading
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: Dictionary entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DictionaryEntry"
+
+  # ─── COLLECTIONS ────────────────────────────────────────────────────────
+  /collections:
+    get:
+      operationId: getCollections
+      tags: [collections]
+      summary: List all collections
+      responses:
+        "200":
+          description: Collections list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Collection"
+    post:
+      operationId: createCollection
+      tags: [collections]
+      summary: Create a collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionInput"
+      responses:
+        "201":
+          description: Created collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+
+  /collections/{id}:
+    patch:
+      operationId: updateCollection
+      tags: [collections]
+      summary: Update a collection
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionUpdate"
+      responses:
+        "200":
+          description: Updated collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+    delete:
+      operationId: deleteCollection
+      tags: [collections]
+      summary: Delete a collection
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── SRS ────────────────────────────────────────────────────────────────
+  /srs/queue:
+    get:
+      operationId: getSrsQueue
+      tags: [srs]
+      summary: Get today's SRS review queue
+      responses:
+        "200":
+          description: List of vocab entries due for review
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SrsCard"
+
+  /srs/review:
+    post:
+      operationId: submitSrsReview
+      tags: [srs]
+      summary: Submit a review result (SM-2 update)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SrsReviewInput"
+      responses:
+        "200":
+          description: Updated vocab entry with next review date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VocabEntry"
+
+  # ─── STATS ──────────────────────────────────────────────────────────────
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Get dashboard overview stats
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /stats/history:
+    get:
+      operationId: getStatsHistory
+      tags: [stats]
+      summary: Get daily stats history for charting known-word growth
+      parameters:
+        - in: query
+          name: days
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Daily stats array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyStats"
+
+  /stats/record:
+    post:
+      operationId: recordStats
+      tags: [stats]
+      summary: Record a reading/listening session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatsSessionInput"
+      responses:
+        "200":
+          description: Updated daily stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyStats"
+
+  # ─── IMPORT ─────────────────────────────────────────────────────────────
+  /import/text:
+    post:
+      operationId: importText
+      tags: [import]
+      summary: Import raw Japanese text as a lesson
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportTextInput"
+      responses:
+        "201":
+          description: Created lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+
+  /import/url:
+    post:
+      operationId: importUrl
+      tags: [import]
+      summary: Import a web article by URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportUrlInput"
+      responses:
+        "201":
+          description: Created lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+
+  /import/youtube:
+    post:
+      operationId: importYoutube
+      tags: [import]
+      summary: Import YouTube video subtitles as a lesson
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportYoutubeInput"
+      responses:
+        "201":
+          description: Created lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+
+  # ─── AI ─────────────────────────────────────────────────────────────────
+  /ai/translate:
+    post:
+      operationId: aiTranslate
+      tags: [ai]
+      summary: Get AI translation for a sentence or word in context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiTranslateInput"
+      responses:
+        "200":
+          description: AI translation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiTranslateResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +545,357 @@ components:
       required:
         - status
 
+    # ── Lesson ───────────────────────────────────────────────────────────
+    Lesson:
+      type: object
+      required: [id, title, sourceType, rawText, status, wordCount, createdAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        sourceUrl:
+          type: ["string", "null"]
+        sourceType:
+          type: string
+          enum: ["text", "youtube", "audio", "epub", "url"]
+        rawText:
+          type: string
+        tokens:
+          type: ["string", "null"]
+          description: JSON-encoded token array
+        audioUrl:
+          type: ["string", "null"]
+        collectionId:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: ["saved", "in_progress", "completed"]
+        wordCount:
+          type: integer
+        createdAt:
+          type: string
+
+    LessonInput:
+      type: object
+      required: [title, sourceType, rawText]
+      properties:
+        title:
+          type: string
+        sourceUrl:
+          type: ["string", "null"]
+        sourceType:
+          type: string
+          enum: ["text", "youtube", "audio", "epub", "url"]
+        rawText:
+          type: string
+        tokens:
+          type: ["string", "null"]
+        audioUrl:
+          type: ["string", "null"]
+        collectionId:
+          type: ["string", "null"]
+        wordCount:
+          type: integer
+
+    LessonUpdate:
+      type: object
+      properties:
+        title:
+          type: ["string", "null"]
+        status:
+          type: ["string", "null"]
+          enum: ["saved", "in_progress", "completed", null]
+        collectionId:
+          type: ["string", "null"]
+
+    LessonStats:
+      type: object
+      required: [lessonId, totalTokens, knownCount, learningCount, unknownCount, percentKnown]
+      properties:
+        lessonId:
+          type: string
+        totalTokens:
+          type: integer
+        knownCount:
+          type: integer
+        learningCount:
+          type: integer
+        unknownCount:
+          type: integer
+        percentKnown:
+          type: number
+
+    # ── Vocab ────────────────────────────────────────────────────────────
+    VocabEntry:
+      type: object
+      required: [id, surface, dictionaryForm, reading, status, timesSeen, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        surface:
+          type: string
+        dictionaryForm:
+          type: string
+        reading:
+          type: string
+        status:
+          type: integer
+          description: "0=unknown, 1-4=learning stages, 5=known, 99=ignored"
+        timesSeen:
+          type: integer
+        note:
+          type: ["string", "null"]
+        sourceLessonId:
+          type: ["string", "null"]
+        nextReview:
+          type: ["string", "null"]
+        easeFactor:
+          type: ["number", "null"]
+        intervalDays:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    VocabUpdate:
+      type: object
+      properties:
+        status:
+          type: ["integer", "null"]
+        note:
+          type: ["string", "null"]
+
+    VocabUpsertInput:
+      type: object
+      required: [surface, dictionaryForm, reading]
+      properties:
+        surface:
+          type: string
+        dictionaryForm:
+          type: string
+        reading:
+          type: string
+        status:
+          type: ["integer", "null"]
+        sourceLessonId:
+          type: ["string", "null"]
+
+    VocabLookupInput:
+      type: object
+      required: [dictionaryForms]
+      properties:
+        dictionaryForms:
+          type: array
+          items:
+            type: string
+
+    VocabSummary:
+      type: object
+      required: [total, known, learning, unknown, ignored]
+      properties:
+        total:
+          type: integer
+        known:
+          type: integer
+        learning:
+          type: integer
+        unknown:
+          type: integer
+        ignored:
+          type: integer
+
+    # ── Dictionary ───────────────────────────────────────────────────────
+    DictionaryEntry:
+      type: object
+      required: [headword, readings, senses]
+      properties:
+        headword:
+          type: string
+        readings:
+          type: array
+          items:
+            type: string
+        senses:
+          type: array
+          items:
+            $ref: "#/components/schemas/DictionarySense"
+        jlptLevel:
+          type: ["string", "null"]
+        partOfSpeech:
+          type: array
+          items:
+            type: string
+
+    DictionarySense:
+      type: object
+      required: [glosses]
+      properties:
+        glosses:
+          type: array
+          items:
+            type: string
+        partOfSpeech:
+          type: array
+          items:
+            type: string
+        examples:
+          type: array
+          items:
+            type: string
+
+    # ── Collections ──────────────────────────────────────────────────────
+    Collection:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        lessonCount:
+          type: integer
+        createdAt:
+          type: string
+
+    CollectionInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+
+    CollectionUpdate:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+
+    # ── SRS ──────────────────────────────────────────────────────────────
+    SrsCard:
+      type: object
+      required: [vocabEntry, contextSentence]
+      properties:
+        vocabEntry:
+          $ref: "#/components/schemas/VocabEntry"
+        contextSentence:
+          type: string
+        lessonTitle:
+          type: ["string", "null"]
+
+    SrsReviewInput:
+      type: object
+      required: [vocabId, quality]
+      properties:
+        vocabId:
+          type: string
+        quality:
+          type: integer
+          description: "SM-2 quality rating 0-5"
+
+    # ── Stats ─────────────────────────────────────────────────────────────
+    DashboardStats:
+      type: object
+      required: [totalKnownWords, totalWordsRead, totalListeningMinutes, totalStudyMinutes, totalLessons, lessonsInProgress, lessonsCompleted, dueForReview]
+      properties:
+        totalKnownWords:
+          type: integer
+        totalWordsRead:
+          type: integer
+        totalListeningMinutes:
+          type: integer
+        totalStudyMinutes:
+          type: integer
+        totalLessons:
+          type: integer
+        lessonsInProgress:
+          type: integer
+        lessonsCompleted:
+          type: integer
+        dueForReview:
+          type: integer
+
+    DailyStats:
+      type: object
+      required: [date, wordsRead, listeningMinutes, newLingqs, knownWordsTotal, studyMinutes]
+      properties:
+        date:
+          type: string
+        wordsRead:
+          type: integer
+        listeningMinutes:
+          type: integer
+        newLingqs:
+          type: integer
+        knownWordsTotal:
+          type: integer
+        studyMinutes:
+          type: integer
+
+    StatsSessionInput:
+      type: object
+      properties:
+        wordsRead:
+          type: ["integer", "null"]
+        listeningMinutes:
+          type: ["integer", "null"]
+        newLingqs:
+          type: ["integer", "null"]
+        studyMinutes:
+          type: ["integer", "null"]
+
+    # ── Import ────────────────────────────────────────────────────────────
+    ImportTextInput:
+      type: object
+      required: [title, text]
+      properties:
+        title:
+          type: string
+        text:
+          type: string
+        collectionId:
+          type: ["string", "null"]
+
+    ImportUrlInput:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+        collectionId:
+          type: ["string", "null"]
+
+    ImportYoutubeInput:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+        collectionId:
+          type: ["string", "null"]
+
+    # ── AI ───────────────────────────────────────────────────────────────
+    AiTranslateInput:
+      type: object
+      required: [sentence]
+      properties:
+        sentence:
+          type: string
+        targetWord:
+          type: ["string", "null"]
+
+    AiTranslateResult:
+      type: object
+      required: [translation]
+      properties:
+        translation:
+          type: string
+        wordExplanation:
+          type: ["string", "null"]
