@@ -1,24 +1,25 @@
-import pLimit from "p-limit";
-import pRetry, { AbortError } from "p-retry";
-
 /**
  * Batch Processing Utilities
  *
  * Generic batch processing with built-in rate limiting and automatic retries.
- * Use for any task that requires processing multiple items through an LLM or external API.
+ * Works with any OpenRouter model — pass the model string at call site.
  *
- * USAGE:
+ * ─── Provider ─────────────────────────────────────────────────────────────
+ * All AI calls route through OpenRouter (https://openrouter.ai).
+ * One API key (OPENROUTER_API_KEY) covers all models.
+ *
+ * ─── USAGE ────────────────────────────────────────────────────────────────
  * ```typescript
  * import { batchProcess } from "@workspace/integrations-anthropic-ai/batch";
- * import { anthropic } from "@workspace/integrations-anthropic-ai";
+ * import { anthropic, DEFAULT_TEXT_MODEL } from "@workspace/integrations-anthropic-ai";
  *
  * const results = await batchProcess(
- *   artworks,
- *   async (artwork) => {
+ *   items,
+ *   async (item) => {
  *     const message = await anthropic.messages.create({
- *       model: "claude-sonnet-4-6",
- *       max_tokens: 8192,
- *       messages: [{ role: "user", content: `Categorize: ${artwork.name}` }],
+ *       model: DEFAULT_TEXT_MODEL, // "google/gemini-2.0-flash-lite" by default
+ *       max_tokens: 256,
+ *       messages: [{ role: "user", content: `Translate: ${item.sentence}` }],
  *     });
  *     const block = message.content[0];
  *     return block.type === "text" ? block.text : "";
@@ -26,7 +27,17 @@ import pRetry, { AbortError } from "p-retry";
  *   { concurrency: 2, retries: 5 }
  * );
  * ```
+ *
+ * ─── Available model strings (via OpenRouter) ─────────────────────────────
+ *   google/gemini-2.0-flash-lite       ← default, cheapest, fast
+ *   mistralai/mistral-7b-instruct       ← structured output, reliable
+ *   meta-llama/llama-3.1-8b-instruct    ← open-source, good Japanese
+ *   anthropic/claude-haiku-4-5          ← if Claude quality needed
+ * ─────────────────────────────────────────────────────────────────────────
  */
+
+import pLimit from "p-limit";
+import pRetry, { AbortError } from "p-retry";
 
 export interface BatchOptions {
   concurrency?: number;
