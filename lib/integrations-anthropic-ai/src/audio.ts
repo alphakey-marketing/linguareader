@@ -1,41 +1,42 @@
 /**
- * Audio Transcription Client — powered by BasicRouter
+ * Audio Transcription Client — powered by OpenRouter
  *
- * Uses BasicRouter's Speech-to-Text endpoint (OpenAI-compatible):
- *   POST https://basicrouter.ai/api/v1/audio/transcriptions
+ * Uses OpenRouter's Speech-to-Text endpoint (announced April 2026):
+ *   POST https://openrouter.ai/api/v1/audio/transcriptions
  *
  * This is OpenAI-compatible, so it uses the same FormData shape as
- * the OpenAI Whisper API — just with the BasicRouter base URL and key.
+ * the OpenAI Whisper API — just with the OpenRouter base URL and key.
  *
  * ─── Environment variable required ───────────────────────────────────────
- *   BASICROUTER_API_KEY   — same key used for text models, no second key needed
+ *   OPENROUTER_API_KEY   — same key used for text models, no second key needed
  * ─────────────────────────────────────────────────────────────────────────
  *
  * Default model: openai/gpt-4o-mini-transcribe
  *   - Best cost/accuracy balance for Japanese audio
- *   - Returns word-level timestamps for audio sync
- *   - Override via BASICROUTER_AUDIO_MODEL env var
+ *   - $0.003/minute (~$0.90 for 5hrs/month)
+ *   - Returns word-level timestamps for audio sync (FR-06)
+ *   - Override via OPENROUTER_AUDIO_MODEL env var
  *
- * Other available models (set via BASICROUTER_AUDIO_MODEL):
- *   openai/gpt-4o-transcribe            — higher accuracy
+ * Other available models (set via OPENROUTER_AUDIO_MODEL):
+ *   openai/gpt-4o-transcribe            — higher accuracy, $0.006/min
  *   openai/whisper-large-v3-turbo       — fallback, reliable, timestamps
  */
 
-if (!process.env.BASICROUTER_API_KEY) {
+if (!process.env.OPENROUTER_API_KEY) {
   throw new Error(
-    "BASICROUTER_API_KEY must be set. " +
-    "Get your key at https://basicrouter.ai and add it to Replit Secrets."
+    "OPENROUTER_API_KEY must be set. " +
+    "Get your key at https://openrouter.ai/keys and add it to Replit Secrets."
   );
 }
 
-const BASICROUTER_STT_URL = "https://basicrouter.ai/api/v1/audio/transcriptions";
+const OPENROUTER_STT_URL = "https://openrouter.ai/api/v1/audio/transcriptions";
 
 /**
  * Default audio transcription model.
- * Override by setting BASICROUTER_AUDIO_MODEL in your environment.
+ * Override by setting OPENROUTER_AUDIO_MODEL in your environment.
  */
 export const DEFAULT_AUDIO_MODEL =
-  process.env.BASICROUTER_AUDIO_MODEL ?? "openai/gpt-4o-mini-transcribe";
+  process.env.OPENROUTER_AUDIO_MODEL ?? "openai/gpt-4o-mini-transcribe";
 
 export interface TranscriptionWord {
   word: string;
@@ -51,7 +52,7 @@ export interface TranscriptionResult {
 }
 
 /**
- * Transcribe an audio file using BasicRouter's STT endpoint.
+ * Transcribe an audio file using OpenRouter's STT endpoint.
  *
  * @param audioBuffer  - Raw audio file buffer (MP3, M4A, WAV)
  * @param filename     - Original filename including extension (e.g. "podcast.mp3")
@@ -84,14 +85,14 @@ export async function transcribeAudio(
   const blob = new Blob([audioBuffer], { type: mimeType });
   formData.append("file", blob, filename);
   formData.append("model", DEFAULT_AUDIO_MODEL);
-  formData.append("language", language);
-  formData.append("response_format", "verbose_json");
-  formData.append("timestamp_granularities[]", "word");
+  formData.append("language", language);          // always set — improves accuracy
+  formData.append("response_format", "verbose_json"); // required for word timestamps
+  formData.append("timestamp_granularities[]", "word"); // word-level for audio sync
 
-  const response = await fetch(BASICROUTER_STT_URL, {
+  const response = await fetch(OPENROUTER_STT_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.BASICROUTER_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "HTTP-Referer": "https://linguareader.app",
       "X-Title": "LinguaReader",
     },
@@ -101,7 +102,7 @@ export async function transcribeAudio(
   if (!response.ok) {
     const error = await response.text();
     throw new Error(
-      `BasicRouter transcription failed (${response.status}): ${error}`
+      `OpenRouter transcription failed (${response.status}): ${error}`
     );
   }
 

@@ -57,40 +57,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    // Suppress sourcemap warnings from node_modules (Radix UI "use client" in .mjs)
-    sourcemap: false,
-    rollupOptions: {
-      onwarn(warning, defaultHandler) {
-        // Suppress "Can't resolve original location" sourcemap noise from deps
-        if (
-          warning.code === "SOURCEMAP_ERROR" ||
-          (warning.message && warning.message.includes("Can't resolve original location"))
-        ) {
-          return;
-        }
-        defaultHandler(warning);
-      },
-      output: {
-        // Split large vendor chunks for faster initial page load
-        manualChunks(id) {
-          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
-            return "vendor-react";
-          }
-          if (id.includes("node_modules/@radix-ui")) {
-            return "vendor-radix";
-          }
-          if (id.includes("node_modules/framer-motion")) {
-            return "vendor-framer";
-          }
-          if (id.includes("node_modules/recharts") || id.includes("node_modules/d3")) {
-            return "vendor-charts";
-          }
-          if (id.includes("node_modules/lucide-react")) {
-            return "vendor-lucide";
-          }
-        },
-      },
-    },
   },
   server: {
     port,
