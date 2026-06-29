@@ -1,8 +1,15 @@
 import { Router } from "express";
-import { anthropic, DEFAULT_TEXT_MODEL } from "@workspace/integrations-anthropic-ai";
+import Anthropic from "@anthropic-ai/sdk";
 import { AiTranslateBody } from "@workspace/api-zod";
 
 const router = Router();
+
+const anthropic = new Anthropic({
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+});
+
+const MODEL = "claude-haiku-4-5";
 
 router.post("/ai/translate", async (req, res) => {
   const parsed = AiTranslateBody.safeParse(req.body);
@@ -16,7 +23,7 @@ router.post("/ai/translate", async (req, res) => {
       : `Translate this Japanese sentence to English, then provide a brief linguistic note if there's anything interesting about the grammar or vocabulary: "${sentence}". Format: first the translation, then a brief note (if applicable).`;
 
     const message = await anthropic.messages.create({
-      model: DEFAULT_TEXT_MODEL, // "google/gemini-2.0-flash-lite" by default; override via OPENROUTER_TEXT_MODEL
+      model: MODEL,
       max_tokens: 512,
       messages: [{ role: "user", content: prompt }],
     });

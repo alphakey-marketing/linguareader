@@ -49,7 +49,7 @@ app.use(express.static(FRONTEND_DIST));
 // ── SPA fallback: serve index.html for all non-API routes ────────────────
 // Required so that client-side routes like /dashboard, /lessons/:id etc.
 // all work when the user navigates directly or refreshes the page.
-app.get("*", (_req, res) => {
+app.get("/{*path}", (_req, res) => {
   res.sendFile(path.join(FRONTEND_DIST, "index.html"));
 });
 
