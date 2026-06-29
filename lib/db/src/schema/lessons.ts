@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -11,8 +11,19 @@ export const lessonsTable = pgTable("lessons", {
   sourceUrl: text("source_url"),
   sourceType: sourceTypeEnum("source_type").notNull().default("text"),
   rawText: text("raw_text").notNull(),
-  tokens: text("tokens"),
+  /**
+   * JSON-encoded array of JpToken objects produced by @workspace/kuromoji.
+   * Stored as JSONB for efficient querying (FR-01).
+   * Shape: Array<{ surface, dictionaryForm, reading, partOfSpeech, partOfSpeechDetail, isWord }>
+   */
+  tokens: jsonb("tokens"),
   audioUrl: text("audio_url"),
+  /**
+   * Word-level timestamps from Whisper transcription (FR-06).
+   * Shape: Array<{ word: string; start: number; end: number }>
+   * Used by the audio player to highlight the current sentence.
+   */
+  timestamps: jsonb("timestamps"),
   collectionId: text("collection_id"),
   status: lessonStatusEnum("status").notNull().default("saved"),
   wordCount: integer("word_count").notNull().default(0),
@@ -27,3 +38,10 @@ export const insertLessonSchema = createInsertSchema(lessonsTable).omit({
 });
 export type InsertLesson = z.infer<typeof insertLessonSchema>;
 export type Lesson = typeof lessonsTable.$inferSelect;
+
+// ── Timestamp shape (for type-safe usage in app code) ─────────────────────
+export interface WhisperTimestamp {
+  word: string;
+  start: number; // seconds from audio start
+  end: number;
+}

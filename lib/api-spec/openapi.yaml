@@ -228,6 +228,32 @@ paths:
                 additionalProperties:
                   $ref: "#/components/schemas/VocabEntry"
 
+  /vocab/export:
+    get:
+      operationId: exportVocab
+      tags: [vocab]
+      summary: Export all vocabulary as CSV or JSON (NFR-08 data portability)
+      parameters:
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: ["csv", "json"]
+            default: "json"
+      responses:
+        "200":
+          description: Exported vocabulary data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VocabEntry"
+            text/csv:
+              schema:
+                type: string
+                description: CSV with headers surface,dictionary_form,reading,status,times_seen,note,created_at
+
   /vocab/{id}:
     patch:
       operationId: updateVocabEntry
@@ -515,6 +541,70 @@ paths:
               schema:
                 $ref: "#/components/schemas/Lesson"
 
+  /import/audio:
+    post:
+      operationId: importAudio
+      tags: [import]
+      summary: Upload an MP3/audio file, transcribe via Whisper, create a synced lesson (FR-05)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: MP3, M4A, or WAV audio file
+                title:
+                  type: ["string", "null"]
+                  description: Optional lesson title; defaults to filename
+                collectionId:
+                  type: ["string", "null"]
+      responses:
+        "201":
+          description: Created lesson with Whisper timestamps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "422":
+          description: Unsupported file type
+
+  /import/epub:
+    post:
+      operationId: importEpub
+      tags: [import]
+      summary: Upload an EPUB ebook and create one lesson per chapter (FR-05)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: EPUB file
+                collectionId:
+                  type: ["string", "null"]
+                  description: Collection to add chapters to; a new collection is created if omitted
+      responses:
+        "201":
+          description: Array of created lessons (one per chapter)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lesson"
+        "422":
+          description: Invalid EPUB file
+
   # ─── AI ─────────────────────────────────────────────────────────────────
   /ai/translate:
     post:
@@ -562,10 +652,13 @@ components:
         rawText:
           type: string
         tokens:
-          type: ["string", "null"]
-          description: JSON-encoded token array
+          description: JSON-encoded kuromoji token array (JpToken[])
+          nullable: true
         audioUrl:
           type: ["string", "null"]
+        timestamps:
+          description: Whisper word-level timestamps (WhisperTimestamp[])
+          nullable: true
         collectionId:
           type: ["string", "null"]
         status:
@@ -590,7 +683,7 @@ components:
         rawText:
           type: string
         tokens:
-          type: ["string", "null"]
+          nullable: true
         audioUrl:
           type: ["string", "null"]
         collectionId:
